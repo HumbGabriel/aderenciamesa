@@ -159,7 +159,7 @@ function Dashboard({ userId }: { userId: string }) {
           <div>
             <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">Mesa</h1>
             <p className="text-sm text-muted-foreground">
-              {counts[0].n} de {people.length} on-line agora
+              {counts[0]?.n ?? 0} de {people.length} on-line agora
             </p>
           </div>
           <Button variant="ghost" size="sm" onClick={() => supabase.auth.signOut()}>Sair</Button>
