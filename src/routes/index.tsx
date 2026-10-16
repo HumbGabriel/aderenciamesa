@@ -20,9 +20,9 @@ const ORDER: Status[] = ["online", "away", "lunch", "offline"];
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Mesa — Status da equipe em tempo real" },
+      { title: "Stoneverso — Status da equipe em tempo real" },
       { name: "description", content: "Veja quem da equipe está on-line, ausente, em almoço ou off-line, atualizado em tempo real." },
-      { property: "og:title", content: "Mesa — Status da equipe em tempo real" },
+      { property: "og:title", content: "Stoneverso — Status da equipe em tempo real" },
       { property: "og:description", content: "Disponibilidade da equipe atualizada ao vivo." },
     ],
   }),
@@ -84,7 +84,7 @@ function NameForm({ onPick }: { onPick: (id: string) => void }) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-5">
       <div className="w-full max-w-sm">
-        <h1 className="font-display text-4xl font-bold tracking-tight text-primary">Mesa</h1>
+        <h1 className="font-display text-4xl font-bold tracking-tight text-primary">Stoneverso</h1>
         <p className="mt-2 text-muted-foreground">Quem está disponível agora, em tempo real.</p>
         <form onSubmit={submit} className="mt-8 space-y-4 rounded-2xl border bg-card p-6 shadow-sm">
           <div className="space-y-1.5">
@@ -136,7 +136,7 @@ function Dashboard({ userId, onLeave }: { userId: string; onLeave: () => void })
       <div className="mx-auto max-w-3xl">
         <header className="flex items-center justify-between">
           <div>
-            <h1 className="font-display text-3xl font-bold tracking-tight text-primary">Mesa</h1>
+            <h1 className="font-display text-3xl font-bold tracking-tight text-primary">Stoneverso</h1>
             <p className="text-sm text-muted-foreground">
               {counts[0]?.n ?? 0} de {people.length} on-line agora
             </p>
