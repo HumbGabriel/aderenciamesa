@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
-import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
@@ -8,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 type Status = Database["public"]["Enums"]["presence_status"];
-type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+type Profile = Database["public"]["Tables"]["members"]["Row"];
 
 const STATUS: Record<Status, { label: string; dot: string; badge: string }> = {
   online: { label: "On-line", dot: "bg-status-online", badge: "bg-status-online/15 text-foreground border-status-online/40" },
@@ -40,45 +39,44 @@ function timeAgo(iso: string, now: number) {
   return `há ${Math.floor(h / 24)} d`;
 }
 
+const KEY = "mesa-member-id";
+
 function Index() {
-  const [session, setSession] = useState<Session | null>(null);
+  const [memberId, setMemberId] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
-
   useEffect(() => {
-    const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setReady(true);
-    });
-    return () => data.subscription.unsubscribe();
+    setMemberId(localStorage.getItem(KEY));
+    setReady(true);
   }, []);
-
+  const choose = (id: string | null) => {
+    if (id) localStorage.setItem(KEY, id);
+    else localStorage.removeItem(KEY);
+    setMemberId(id);
+  };
   if (!ready) return <div className="min-h-screen bg-background" />;
-  return session ? <Dashboard userId={session.user.id} /> : <AuthForm />;
+  return memberId ? <Dashboard userId={memberId} onLeave={() => choose(null)} /> : <NameForm onPick={choose} />;
 }
 
-function AuthForm() {
-  const [mode, setMode] = useState<"in" | "up">("in");
+function NameForm({ onPick }: { onPick: (id: string) => void }) {
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function submit(e: FormEvent) {
     e.preventDefault();
+    const clean = name.trim();
+    if (!clean) return;
     setBusy(true);
     setMsg(null);
-    if (mode === "in") {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) setMsg("E-mail ou senha inválidos.");
+    const { data: list } = await supabase.from("members").select("id, display_name");
+    const found = list?.find((m) => m.display_name.trim().toLowerCase() === clean.toLowerCase());
+    if (found) {
+      await supabase.from("members").update({ status: "online" }).eq("id", found.id);
+      onPick(found.id);
     } else {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { emailRedirectTo: window.location.origin, data: { display_name: name } },
-      });
-      setMsg(error ? error.message : "Conta criada! Confirme pelo link enviado ao seu e-mail.");
+      const { data, error } = await supabase.from("members").insert({ display_name: clean }).select("id").single();
+      if (error || !data) setMsg("Não foi possível entrar. Tente novamente.");
+      else onPick(data.id);
     }
     setBusy(false);
   }
@@ -86,49 +84,30 @@ function AuthForm() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-5">
       <div className="w-full max-w-sm">
-        <h1 className="font-display text-4xl font-bold tracking-tight text-foreground">Mesa</h1>
+        <h1 className="font-display text-4xl font-bold tracking-tight text-primary">Mesa</h1>
         <p className="mt-2 text-muted-foreground">Quem está disponível agora, em tempo real.</p>
         <form onSubmit={submit} className="mt-8 space-y-4 rounded-2xl border bg-card p-6 shadow-sm">
-          {mode === "up" && (
-            <div className="space-y-1.5">
-              <Label htmlFor="name">Nome</Label>
-              <Input id="name" required value={name} onChange={(e) => setName(e.target.value)} />
-            </div>
-          )}
           <div className="space-y-1.5">
-            <Label htmlFor="email">E-mail</Label>
-            <Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
+            <Label htmlFor="name">Seu nome</Label>
+            <Input id="name" required maxLength={60} value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Ana Souza" />
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="pw">Senha</Label>
-            <Input id="pw" type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
-          </div>
-          {msg && <p className="text-sm text-muted-foreground">{msg}</p>}
-          <Button type="submit" className="w-full" disabled={busy}>
-            {mode === "in" ? "Entrar" : "Criar conta"}
-          </Button>
-          <button
-            type="button"
-            className="w-full text-sm text-muted-foreground underline-offset-4 hover:underline"
-            onClick={() => { setMode(mode === "in" ? "up" : "in"); setMsg(null); }}
-          >
-            {mode === "in" ? "Não tem conta? Cadastre-se" : "Já tem conta? Entrar"}
-          </button>
+          {msg && <p className="text-sm text-destructive">{msg}</p>}
+          <Button type="submit" className="w-full" disabled={busy}>Entrar</Button>
         </form>
       </div>
     </main>
   );
 }
 
-function Dashboard({ userId }: { userId: string }) {
+function Dashboard({ userId, onLeave }: { userId: string; onLeave: () => void }) {
   const [people, setPeople] = useState<Profile[]>([]);
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
-    supabase.from("profiles").select("*").then(({ data }) => data && setPeople(data));
+    supabase.from("members").select("*").then(({ data }) => data && setPeople(data));
     const channel = supabase
-      .channel("profiles-status")
-      .on("postgres_changes", { event: "*", schema: "public", table: "profiles" }, (payload) => {
+      .channel("members-status")
+      .on("postgres_changes", { event: "*", schema: "public", table: "members" }, (payload) => {
         setPeople((prev) => {
           if (payload.eventType === "DELETE") return prev.filter((p) => p.id !== (payload.old as Profile).id);
           const row = payload.new as Profile;
@@ -149,7 +128,7 @@ function Dashboard({ userId }: { userId: string }) {
 
   async function setStatus(status: Status) {
     setPeople((prev) => prev.map((p) => (p.id === userId ? { ...p, status, status_updated_at: new Date().toISOString() } : p)));
-    await supabase.from("profiles").update({ status }).eq("id", userId);
+    await supabase.from("members").update({ status }).eq("id", userId);
   }
 
   return (
@@ -157,12 +136,12 @@ function Dashboard({ userId }: { userId: string }) {
       <div className="mx-auto max-w-3xl">
         <header className="flex items-center justify-between">
           <div>
-            <h1 className="font-display text-3xl font-bold tracking-tight text-foreground">Mesa</h1>
+            <h1 className="font-display text-3xl font-bold tracking-tight text-primary">Mesa</h1>
             <p className="text-sm text-muted-foreground">
               {counts[0]?.n ?? 0} de {people.length} on-line agora
             </p>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => supabase.auth.signOut()}>Sair</Button>
+          <Button variant="ghost" size="sm" onClick={onLeave}>Trocar nome</Button>
         </header>
 
         <section className="mt-8 rounded-2xl border bg-card p-5 shadow-sm">
