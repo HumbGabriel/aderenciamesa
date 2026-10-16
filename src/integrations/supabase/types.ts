@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      members: {
+        Row: {
+          created_at: string
+          display_name: string
+          id: string
+          status: Database["public"]["Enums"]["presence_status"]
+          status_updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          display_name: string
+          id?: string
+          status?: Database["public"]["Enums"]["presence_status"]
+          status_updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string
+          id?: string
+          status?: Database["public"]["Enums"]["presence_status"]
+          status_updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
