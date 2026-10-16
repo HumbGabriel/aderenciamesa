@@ -177,7 +177,7 @@ function Dashboard({ userId }: { userId: string }) {
                   key={s}
                   onClick={() => setStatus(s)}
                   className={`flex items-center gap-2 rounded-xl border px-3 py-3 text-sm font-medium transition-all ${
-                    active ? "border-foreground bg-foreground text-background" : "bg-background text-foreground hover:bg-accent"
+                    active ? "border-primary bg-primary text-primary-foreground" : "bg-background text-foreground hover:bg-accent"
                   }`}
                 >
                   <span className={`h-2.5 w-2.5 rounded-full ${STATUS[s].dot}`} />
