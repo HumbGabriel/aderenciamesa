@@ -1,4 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import mysticBg from "@/assets/mystic-bg.jpg";
 import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
@@ -82,10 +83,15 @@ function NameForm({ onPick }: { onPick: (id: string) => void }) {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-5">
+    <main
+      className="flex min-h-screen items-center justify-center bg-background bg-cover bg-center px-5"
+      style={{ backgroundImage: `url(${mysticBg})` }}
+    >
       <div className="w-full max-w-sm">
-        <h1 className="font-display text-4xl font-bold tracking-tight text-primary">Stoneverso</h1>
-        <p className="mt-2 text-muted-foreground">Quem está disponível agora, em tempo real.</p>
+        <div className="rounded-2xl bg-card/85 p-4 backdrop-blur">
+          <h1 className="font-display text-4xl font-bold tracking-tight text-primary">Stoneverso</h1>
+          <p className="mt-2 text-muted-foreground">Quem está disponível agora, em tempo real.</p>
+        </div>
         <form onSubmit={submit} className="mt-8 space-y-4 rounded-2xl border bg-card p-6 shadow-sm">
           <div className="space-y-1.5">
             <Label htmlFor="name">Seu nome</Label>
@@ -141,7 +147,10 @@ function Dashboard({ userId, onLeave }: { userId: string; onLeave: () => void })
               {counts[0]?.n ?? 0} de {people.length} on-line agora
             </p>
           </div>
-          <Button variant="ghost" size="sm" onClick={onLeave}>Trocar nome</Button>
+          <div className="flex items-center gap-1">
+            <Button variant="outline" size="sm" asChild><Link to="/ausentes">Ver ausentes</Link></Button>
+            <Button variant="ghost" size="sm" onClick={onLeave}>Trocar nome</Button>
+          </div>
         </header>
 
         <section className="mt-8 rounded-2xl border bg-card p-5 shadow-sm">
