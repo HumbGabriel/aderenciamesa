@@ -1,9 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import type { Database } from "@/integrations/supabase/types";
-
-type Member = Database["public"]["Tables"]["members"]["Row"];
+import { usePresence } from '@/hooks/use-presence';
 
 export const Route = createFileRoute("/ausentes")({
   head: () => ({
@@ -27,24 +23,7 @@ function timeAgo(iso: string, now: number) {
 }
 
 function Ausentes() {
-  const [people, setPeople] = useState<Member[]>([]);
-  const [now, setNow] = useState(Date.now());
-
-  useEffect(() => {
-    supabase.from("members").select("*").then(({ data }) => data && setPeople(data));
-    const ch = supabase
-      .channel("members-away")
-      .on("postgres_changes", { event: "*", schema: "public", table: "members" }, (payload) => {
-        setPeople((prev) => {
-          if (payload.eventType === "DELETE") return prev.filter((p) => p.id !== (payload.old as Member).id);
-          const row = payload.new as Member;
-          return prev.some((p) => p.id === row.id) ? prev.map((p) => (p.id === row.id ? row : p)) : [...prev, row];
-        });
-      })
-      .subscribe();
-    const t = setInterval(() => setNow(Date.now()), 30_000);
-    return () => { supabase.removeChannel(ch); clearInterval(t); };
-  }, []);
+  const { people, now, error } = usePresence();
 
   const away = people
     .filter((p) => p.status === "away")
@@ -60,6 +39,7 @@ function Ausentes() {
           </div>
           <Link to="/" className="text-sm font-medium text-primary hover:underline">Painel completo</Link>
         </header>
+        {error && <p role="alert" className="mt-4 text-sm text-destructive">{error}</p>}
         <ul className="mt-8 divide-y overflow-hidden rounded-2xl border bg-card">
           {away.map((p) => (
             <li key={p.id} className="flex items-center gap-3 px-4 py-3.5">
