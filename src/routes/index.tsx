@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import mysticBg from "@/assets/mystic-bg.jpg";
-import { useEffect, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,6 @@ import { usePresence } from '@/hooks/use-presence';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type Status = Database["public"]["Enums"]["presence_status"];
-type Profile = Database["public"]["Tables"]["members"]["Row"];
 
 const STATUS: Record<Status, { label: string; dot: string; badge: string }> = {
   online: { label: "On-line", dot: "bg-status-online", badge: "bg-status-online/15 text-foreground border-status-online/40" },

@@ -46,6 +46,16 @@ export function TeamSessionProvider({ children }: { children: ReactNode }) {
     });
     async function restore() {
       const raw = localStorage.getItem(KEY);
+      const legacyId = localStorage.getItem('mesa-member-id');
+      if (!raw && legacyId) {
+        const { data: member } = await supabase.from('members').select('display_name').eq('id', legacyId).maybeSingle();
+        if (member && mounted) {
+          try { await join(member.display_name); }
+          catch { setConnectionError('Não foi possível reconectar. Entre pelo nome novamente.'); }
+        }
+        if (mounted) setReady(true);
+        return;
+      }
       if (raw) {
         try {
           const device = JSON.parse(raw) as Device;

@@ -1,10 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import type { Database } from "@/integrations/supabase/types";
 import { usePresence } from '@/hooks/use-presence';
-
-type Member = Database["public"]["Tables"]["members"]["Row"];
 
 export const Route = createFileRoute("/ausentes")({
   head: () => ({
