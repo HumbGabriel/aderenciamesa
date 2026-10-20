@@ -6,6 +6,10 @@ import type { Database } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useTeamSession } from '@/components/team-session';
+import { ManagerAccess } from '@/components/manager-access';
+import { usePresence } from '@/hooks/use-presence';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type Status = Database["public"]["Enums"]["presence_status"];
 type Profile = Database["public"]["Tables"]["members"]["Row"];
@@ -25,6 +29,8 @@ export const Route = createFileRoute("/")({
       { name: "description", content: "Veja quem da equipe está on-line, ausente, em almoço ou off-line, atualizado em tempo real." },
       { property: "og:title", content: "Stoneverso — Status da equipe em tempo real" },
       { property: "og:description", content: "Disponibilidade da equipe atualizada ao vivo." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: Index,
@@ -40,25 +46,14 @@ function timeAgo(iso: string, now: number) {
   return `há ${Math.floor(h / 24)} d`;
 }
 
-const KEY = "mesa-member-id";
-
 function Index() {
-  const [memberId, setMemberId] = useState<string | null>(null);
-  const [ready, setReady] = useState(false);
-  useEffect(() => {
-    setMemberId(localStorage.getItem(KEY));
-    setReady(true);
-  }, []);
-  const choose = (id: string | null) => {
-    if (id) localStorage.setItem(KEY, id);
-    else localStorage.removeItem(KEY);
-    setMemberId(id);
-  };
+  const { memberId, ready, leave, manager } = useTeamSession();
   if (!ready) return <div className="min-h-screen bg-background" />;
-  return memberId ? <Dashboard userId={memberId} onLeave={() => choose(null)} /> : <NameForm onPick={choose} />;
+  return memberId || manager ? <Dashboard userId={memberId} onLeave={leave} /> : <NameForm />;
 }
 
-function NameForm({ onPick }: { onPick: (id: string) => void }) {
+function NameForm() {
+  const { join, connectionError } = useTeamSession();
   const [name, setName] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -69,17 +64,9 @@ function NameForm({ onPick }: { onPick: (id: string) => void }) {
     if (!clean) return;
     setBusy(true);
     setMsg(null);
-    const { data: list } = await supabase.from("members").select("id, display_name");
-    const found = list?.find((m) => m.display_name.trim().toLowerCase() === clean.toLowerCase());
-    if (found) {
-      await supabase.from("members").update({ status: "online" }).eq("id", found.id);
-      onPick(found.id);
-    } else {
-      const { data, error } = await supabase.from("members").insert({ display_name: clean }).select("id").single();
-      if (error || !data) setMsg("Não foi possível entrar. Tente novamente.");
-      else onPick(data.id);
-    }
-    setBusy(false);
+    try { await join(clean); }
+    catch (error) { setMsg(error instanceof Error ? error.message : 'Não foi possível entrar.'); }
+    finally { setBusy(false); }
   }
 
   return (
@@ -97,34 +84,20 @@ function NameForm({ onPick }: { onPick: (id: string) => void }) {
             <Label htmlFor="name">Seu nome</Label>
             <Input id="name" required maxLength={60} value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Ana Souza" />
           </div>
-          {msg && <p className="text-sm text-destructive">{msg}</p>}
+          {(msg || connectionError) && <p className="text-sm text-destructive">{msg || connectionError}</p>}
           <Button type="submit" className="w-full" disabled={busy}>Entrar</Button>
         </form>
+        <div className="mt-4 flex justify-center"><ManagerAccess /></div>
       </div>
     </main>
   );
 }
 
-function Dashboard({ userId, onLeave }: { userId: string; onLeave: () => void }) {
-  const [people, setPeople] = useState<Profile[]>([]);
-  const [now, setNow] = useState(Date.now());
-
-  useEffect(() => {
-    supabase.from("members").select("*").then(({ data }) => data && setPeople(data));
-    const channel = supabase
-      .channel("members-status")
-      .on("postgres_changes", { event: "*", schema: "public", table: "members" }, (payload) => {
-        setPeople((prev) => {
-          if (payload.eventType === "DELETE") return prev.filter((p) => p.id !== (payload.old as Profile).id);
-          const row = payload.new as Profile;
-          const exists = prev.some((p) => p.id === row.id);
-          return exists ? prev.map((p) => (p.id === row.id ? row : p)) : [...prev, row];
-        });
-      })
-      .subscribe();
-    const t = setInterval(() => setNow(Date.now()), 30_000);
-    return () => { supabase.removeChannel(channel); clearInterval(t); };
-  }, []);
+function Dashboard({ userId, onLeave }: { userId: string | null; onLeave: () => void }) {
+  const { people, now, error: loadError } = usePresence();
+  const { changeStatus, manager, connectionError } = useTeamSession();
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   const me = people.find((p) => p.id === userId);
   const sorted = [...people].sort(
@@ -133,27 +106,37 @@ function Dashboard({ userId, onLeave }: { userId: string; onLeave: () => void })
   const counts = ORDER.map((s) => ({ s, n: people.filter((p) => p.status === s).length }));
 
   async function setStatus(status: Status) {
-    setPeople((prev) => prev.map((p) => (p.id === userId ? { ...p, status, status_updated_at: new Date().toISOString() } : p)));
-    await supabase.from("members").update({ status }).eq("id", userId);
+    setBusy(true); setError(null);
+    try { await changeStatus(status); }
+    catch (error) { setError(error instanceof Error ? error.message : 'Não foi possível atualizar.'); }
+    finally { setBusy(false); }
+  }
+  async function manageStatus(id: string, status: Status) {
+    setBusy(true); setError(null);
+    const { error } = await supabase.rpc('manager_set_status', { p_member: id, p_status: status });
+    if (error) setError('Não foi possível alterar o status. Verifique seu acesso de gestão.');
+    setBusy(false);
   }
 
   return (
     <main className="min-h-screen bg-background px-5 py-8">
       <div className="mx-auto max-w-3xl">
-        <header className="flex items-center justify-between">
+        <header className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="font-display text-3xl font-bold tracking-tight text-primary">Stoneverso</h1>
             <p className="text-sm text-muted-foreground">
               {counts[0]?.n ?? 0} de {people.length} on-line agora
             </p>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1">
+            <ManagerAccess />
             <Button variant="outline" size="sm" asChild><Link to="/ausentes">Ver ausentes</Link></Button>
-            <Button variant="ghost" size="sm" onClick={onLeave}>Trocar nome</Button>
+            {userId && <Button variant="ghost" size="sm" onClick={onLeave}>Trocar nome</Button>}
           </div>
         </header>
 
-        <section className="mt-8 rounded-2xl border bg-card p-5 shadow-sm">
+        {(error || loadError || connectionError) && <p role="alert" className="mt-4 text-sm text-destructive">{error || loadError || connectionError}</p>}
+        {userId && <section className="mt-8 rounded-2xl border bg-card p-5 shadow-sm">
           <p className="text-sm text-muted-foreground">
             Olá, <span className="font-medium text-foreground">{me?.display_name ?? "…"}</span>. Seu status:
           </p>
@@ -161,8 +144,10 @@ function Dashboard({ userId, onLeave }: { userId: string; onLeave: () => void })
             {ORDER.map((s) => {
               const active = me?.status === s;
               return (
-                <button
+                <Button
                   key={s}
+                   disabled={busy}
+                   aria-pressed={active}
                   onClick={() => setStatus(s)}
                   className={`flex items-center gap-2 rounded-xl border px-3 py-3 text-sm font-medium transition-all ${
                     active ? "border-primary bg-primary text-primary-foreground" : "bg-background text-foreground hover:bg-accent"
@@ -170,11 +155,11 @@ function Dashboard({ userId, onLeave }: { userId: string; onLeave: () => void })
                 >
                   <span className={`h-2.5 w-2.5 rounded-full ${STATUS[s].dot}`} />
                   {STATUS[s].label}
-                </button>
+                 </Button>
               );
             })}
           </div>
-        </section>
+        </section>}
 
         <section className="mt-8">
           <div className="mb-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
@@ -200,9 +185,12 @@ function Dashboard({ userId, onLeave }: { userId: string; onLeave: () => void })
                   </p>
                   <p className="text-xs text-muted-foreground">{timeAgo(p.status_updated_at, now)}</p>
                 </div>
-                <span className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium ${STATUS[p.status].badge}`}>
+                {manager ? <Select value={p.status} disabled={busy} onValueChange={(status) => void manageStatus(p.id, status as Status)}>
+                  <SelectTrigger aria-label={`Status de ${p.display_name}`} className="w-32 shrink-0"><SelectValue /></SelectTrigger>
+                  <SelectContent>{ORDER.map((status) => <SelectItem key={status} value={status}>{STATUS[status].label}</SelectItem>)}</SelectContent>
+                </Select> : <span className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium ${STATUS[p.status].badge}`}>
                   {STATUS[p.status].label}
-                </span>
+                </span>}
               </li>
             ))}
             {people.length === 0 && <li className="px-4 py-8 text-center text-sm text-muted-foreground">Carregando equipe…</li>}
