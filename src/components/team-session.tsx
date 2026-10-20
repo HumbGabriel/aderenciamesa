@@ -16,9 +16,9 @@ const KEY = 'stoneverso-device';
 function closeConnection(connection: Connection) {
   // A same-origin server request would require CSRF handling on unload. The
   // capability-protected RPC accepts only this particular connection token.
-  void fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/rpc/close_member`, {
+  void fetch(`${import.meta.env['VITE_SUPABASE_URL']}/rest/v1/rpc/close_member`, {
     method: 'POST', keepalive: true,
-    headers: { apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY, 'Content-Type': 'application/json' },
+    headers: { apikey: import.meta.env['VITE_SUPABASE_PUBLISHABLE_KEY'], 'Content-Type': 'application/json' },
     body: JSON.stringify({ p_session: connection.sessionId, p_token: connection.token }),
   }).catch(() => {});
 }
@@ -61,7 +61,7 @@ export function TeamSessionProvider({ children }: { children: ReactNode }) {
           const device = JSON.parse(raw) as Device;
           if (typeof device.memberId !== 'string' || typeof device.token !== 'string') throw new Error('Invalid device');
           const sessionId = crypto.randomUUID();
-          const { data, error } = await supabase.rpc('connect_member', { p_name: null, p_member: device.memberId, p_token: device.token, p_session: sessionId });
+          const { data, error } = await supabase.rpc('connect_member', { p_member: device.memberId, p_token: device.token, p_session: sessionId });
           if (error || !data) {
             if (mounted) setConnectionError('Não foi possível reconectar. Entre pelo nome novamente.');
           } else if (mounted) setConnection({ ...device, sessionId });
@@ -92,7 +92,7 @@ export function TeamSessionProvider({ children }: { children: ReactNode }) {
   async function join(name: string) {
     const token = crypto.randomUUID() + crypto.randomUUID();
     const sessionId = crypto.randomUUID();
-    const { data, error } = await supabase.rpc('connect_member', { p_name: name.trim(), p_member: null, p_token: token, p_session: sessionId });
+    const { data, error } = await supabase.rpc('connect_member', { p_name: name.trim(), p_token: token, p_session: sessionId });
     if (error || !data) throw new Error('Não foi possível entrar. Tente novamente.');
     localStorage.setItem(KEY, JSON.stringify({ memberId: data, token }));
     localStorage.removeItem('mesa-member-id');

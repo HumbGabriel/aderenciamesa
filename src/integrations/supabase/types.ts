@@ -135,6 +135,15 @@ export type Database = {
       }
       connect_member: {
         Args: {
+          p_member?: string
+          p_name?: string
+          p_session?: string
+          p_token?: string
+        }
+        Returns: string
+      }
+      connect_member_legacy: {
+        Args: {
           p_member: string
           p_name: string
           p_session: string

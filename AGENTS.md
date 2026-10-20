@@ -12,4 +12,4 @@
 - Keep team connections in the root TeamSessionProvider so navigation between dashboard and absences never disconnects a member.
 - Use hashed per-tab capability leases for name-only member status writes; use database-validated user_roles for manager edits, never browser identity as authorization.
 - Both lists read list_member_presence so disconnected members display Offline even when unload delivery fails; heartbeats never overwrite manual status.
-- Keep migrations additive while a previous published client exists; revoke legacy anonymous member writes only after the replacement client is published.
+- Members can only write through capability RPCs; published clients that use direct writes require republishing after the write-protection migration.
