@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import mysticBg from "@/assets/mystic-bg.jpg";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import { Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
@@ -95,7 +96,9 @@ function NameForm() {
 
 function Dashboard({ userId, onLeave }: { userId: string | null; onLeave: () => void }) {
   const { people, now, error: loadError } = usePresence();
-  const { changeStatus, manager, connectionError } = useTeamSession();
+  const { changeStatus, changeNote, manager, connectionError } = useTeamSession();
+  const [note, setNote] = useState('');
+  const [noteSaved, setNoteSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -110,6 +113,20 @@ function Dashboard({ userId, onLeave }: { userId: string | null; onLeave: () => 
     try { await changeStatus(status); }
     catch (error) { setError(error instanceof Error ? error.message : 'Não foi possível atualizar.'); }
     finally { setBusy(false); }
+  }
+  useEffect(() => { if (me && !noteSaved) setNote(me.note ?? ''); }, [me?.note]); // eslint-disable-line react-hooks/exhaustive-deps
+  async function saveNote(event: FormEvent) {
+    event.preventDefault(); setBusy(true); setError(null);
+    try { await changeNote(note); setNoteSaved(true); setTimeout(() => setNoteSaved(false), 2000); }
+    catch (error) { setError(error instanceof Error ? error.message : 'Não foi possível salvar.'); }
+    finally { setBusy(false); }
+  }
+  async function removeMember(id: string, name: string) {
+    if (!window.confirm(`Remover ${name} da lista?`)) return;
+    setBusy(true); setError(null);
+    const { error } = await supabase.rpc('manager_delete_member', { p_member: id });
+    if (error) setError('Não foi possível remover. Verifique seu acesso de gestão.');
+    setBusy(false);
   }
   async function manageStatus(id: string, status: Status) {
     setBusy(true); setError(null);
@@ -140,7 +157,7 @@ function Dashboard({ userId, onLeave }: { userId: string | null; onLeave: () => 
           <p className="text-sm text-muted-foreground">
             Olá, <span className="font-medium text-foreground">{me?.display_name ?? "…"}</span>. Seu status:
           </p>
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
             {ORDER.map((s) => {
               const active = me?.status === s;
               return (
@@ -159,6 +176,11 @@ function Dashboard({ userId, onLeave }: { userId: string | null; onLeave: () => 
               );
             })}
           </div>
+          <form onSubmit={saveNote} className="mt-4 flex gap-2">
+            <Label htmlFor="status-note" className="sr-only">Recado</Label>
+            <Input id="status-note" maxLength={80} placeholder='Recado (ex.: "volto 14h")' value={note} onChange={(e) => setNote(e.target.value)} />
+            <Button type="submit" variant="outline" disabled={busy}>{noteSaved ? 'Salvo' : 'Salvar'}</Button>
+          </form>
         </section>}
 
         <section className="mt-8">
@@ -183,6 +205,7 @@ function Dashboard({ userId, onLeave }: { userId: string | null; onLeave: () => 
                   <p className="truncate font-medium text-foreground">
                     {p.display_name} {p.id === userId && <span className="text-muted-foreground">(você)</span>}
                   </p>
+                  {p.note && <p className="truncate text-sm text-foreground/80">“{p.note}”</p>}
                   <p className="text-xs text-muted-foreground">{timeAgo(p.status_updated_at, now)}</p>
                 </div>
                 {manager ? <Select value={p.status} disabled={busy} onValueChange={(status) => void manageStatus(p.id, status as Status)}>
@@ -191,12 +214,64 @@ function Dashboard({ userId, onLeave }: { userId: string | null; onLeave: () => 
                 </Select> : <span className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium ${STATUS[p.status].badge}`}>
                   {STATUS[p.status].label}
                 </span>}
+                {manager && <Button variant="ghost" size="icon" disabled={busy} aria-label={`Remover ${p.display_name}`} onClick={() => void removeMember(p.id, p.display_name)}><Trash2 className="size-4" /></Button>}
               </li>
             ))}
             {people.length === 0 && <li className="px-4 py-8 text-center text-sm text-muted-foreground">Carregando equipe…</li>}
           </ul>
         </section>
+        {manager && <DayHistory people={people} />}
       </div>
     </main>
+  );
+}
+
+function formatDuration(seconds: number) {
+  const m = Math.round(seconds / 60);
+  if (m < 60) return `${m} min`;
+  return `${Math.floor(m / 60)} h ${m % 60} min`;
+}
+
+function DayHistory({ people }: { people: { id: string; display_name: string }[] }) {
+  const [rows, setRows] = useState<{ member_id: string; status: Status; seconds: number }[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let live = true;
+    async function load() {
+      const { data, error } = await supabase.rpc('manager_day_history');
+      if (!live) return;
+      if (error) setError('Não foi possível carregar o histórico.');
+      else { setRows(data ?? []); setError(null); }
+    }
+    void load();
+    const timer = setInterval(() => void load(), 60_000);
+    return () => { live = false; clearInterval(timer); };
+  }, []);
+  const named = [...people].sort((a, b) => a.display_name.localeCompare(b.display_name));
+  return (
+    <section className="mt-8">
+      <h2 className="font-display text-lg font-bold text-foreground">Histórico de hoje</h2>
+      <p className="mb-3 text-xs text-muted-foreground">Tempo de cada pessoa em cada status desde meia-noite, pelas mudanças registradas. Atualiza a cada minuto.</p>
+      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+      <div className="overflow-x-auto rounded-2xl border bg-card">
+        <table className="w-full text-sm">
+          <thead><tr className="border-b text-left text-xs text-muted-foreground">
+            <th className="px-4 py-2 font-medium">Pessoa</th>
+            {ORDER.map((s) => <th key={s} className="px-3 py-2 font-medium">{STATUS[s].label}</th>)}
+          </tr></thead>
+          <tbody>
+            {named.map((p) => (
+              <tr key={p.id} className="border-b last:border-0">
+                <td className="px-4 py-2 font-medium text-foreground">{p.display_name}</td>
+                {ORDER.map((s) => {
+                  const r = rows.find((x) => x.member_id === p.id && x.status === s);
+                  return <td key={s} className="px-3 py-2 text-muted-foreground">{r && r.seconds >= 60 ? formatDuration(r.seconds) : '—'}</td>;
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
   );
 }

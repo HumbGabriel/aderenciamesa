@@ -64,6 +64,7 @@ export type Database = {
           display_name: string
           id: string
           manager_set_at: string | null
+          note: string | null
           status: Database["public"]["Enums"]["presence_status"]
           status_updated_at: string
         }
@@ -72,6 +73,7 @@ export type Database = {
           display_name: string
           id?: string
           manager_set_at?: string | null
+          note?: string | null
           status?: Database["public"]["Enums"]["presence_status"]
           status_updated_at?: string
         }
@@ -80,6 +82,7 @@ export type Database = {
           display_name?: string
           id?: string
           manager_set_at?: string | null
+          note?: string | null
           status?: Database["public"]["Enums"]["presence_status"]
           status_updated_at?: string
         }
@@ -108,6 +111,35 @@ export type Database = {
           status_updated_at?: string
         }
         Relationships: []
+      }
+      status_events: {
+        Row: {
+          id: number
+          member_id: string
+          started_at: string
+          status: Database["public"]["Enums"]["presence_status"]
+        }
+        Insert: {
+          id?: number
+          member_id: string
+          started_at?: string
+          status: Database["public"]["Enums"]["presence_status"]
+        }
+        Update: {
+          id?: number
+          member_id?: string
+          started_at?: string
+          status?: Database["public"]["Enums"]["presence_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "status_events_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -166,6 +198,7 @@ export type Database = {
           display_name: string
           id: string
           manager_set_at: string | null
+          note: string | null
           status: Database["public"]["Enums"]["presence_status"]
           status_updated_at: string
         }[]
@@ -176,11 +209,24 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      manager_day_history: {
+        Args: never
+        Returns: {
+          member_id: string
+          seconds: number
+          status: Database["public"]["Enums"]["presence_status"]
+        }[]
+      }
+      manager_delete_member: { Args: { p_member: string }; Returns: undefined }
       manager_set_status: {
         Args: {
           p_member: string
           p_status: Database["public"]["Enums"]["presence_status"]
         }
+        Returns: undefined
+      }
+      set_member_note: {
+        Args: { p_note: string; p_session: string; p_token: string }
         Returns: undefined
       }
       set_member_status: {

@@ -9,6 +9,7 @@ type TeamContext = {
   memberId: string | null; ready: boolean; manager: boolean; connectionError: string | null;
   join: (name: string) => Promise<void>; leave: () => void;
   changeStatus: (status: Database['public']['Enums']['presence_status']) => Promise<void>;
+  changeNote: (note: string) => Promise<void>;
 };
 const Context = createContext<TeamContext | null>(null);
 const KEY = 'stoneverso-device';
@@ -106,7 +107,12 @@ export function TeamSessionProvider({ children }: { children: ReactNode }) {
     const { error } = await supabase.rpc('set_member_status', { p_session: connection.sessionId, p_token: connection.token, p_status: status });
     if (error) throw new Error('Não foi possível mudar o status. Tente novamente.');
   }
-  return <Context.Provider value={{ memberId: connection?.memberId ?? null, ready, manager, connectionError, join, leave, changeStatus }}>{children}</Context.Provider>;
+  async function changeNote(note: string) {
+    if (!connection) throw new Error('Entre novamente.');
+    const { error } = await supabase.rpc('set_member_note', { p_session: connection.sessionId, p_token: connection.token, p_note: note });
+    if (error) throw new Error('Não foi possível salvar o recado. Tente novamente.');
+  }
+  return <Context.Provider value={{ memberId: connection?.memberId ?? null, ready, manager, connectionError, join, leave, changeStatus, changeNote }}>{children}</Context.Provider>;
 }
 
 export function useTeamSession() {
