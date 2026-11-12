@@ -20,12 +20,9 @@ export function usePresence() {
       else { setPeople(data ?? []); setError(null); setNow(Date.now()); }
     }
     void refresh();
-    const channel = supabase.channel(`members-${crypto.randomUUID()}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'members' }, () => void refresh())
-      .subscribe((status) => { if (status === 'SUBSCRIBED') void refresh(); });
     const timer = setInterval(() => void refresh(), REFRESH_MS);
     window.addEventListener('focus', refresh);
-    return () => { live = false; clearInterval(timer); window.removeEventListener('focus', refresh); void supabase.removeChannel(channel); };
+    return () => { live = false; clearInterval(timer); window.removeEventListener('focus', refresh); };
   }, []);
   return { people, error, now };
 }

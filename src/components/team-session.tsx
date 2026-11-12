@@ -48,7 +48,8 @@ export function TeamSessionProvider({ children }: { children: ReactNode }) {
       const raw = localStorage.getItem(KEY);
       const legacyId = localStorage.getItem('mesa-member-id');
       if (!raw && legacyId) {
-        const { data: member } = await supabase.from('members').select('display_name').eq('id', legacyId).maybeSingle();
+        const { data: list } = await supabase.rpc('list_member_presence');
+        const member = (list ?? []).find((m) => m.id === legacyId);
         if (member && mounted) {
           try { await join(member.display_name); }
           catch { setConnectionError('Não foi possível reconectar. Entre pelo nome novamente.'); }
