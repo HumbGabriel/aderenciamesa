@@ -43,6 +43,13 @@
       "when": 1794483359501,
       "tag": "0005_tighten_members_profiles_policies",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794483549067,
+      "tag": "0006_add_meeting_status",
+      "breakpoints": true
     }
   ]
 }

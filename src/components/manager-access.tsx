@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { ShieldCheck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,8 @@ import { useTeamSession } from '@/components/team-session';
 
 export function ManagerAccess() {
   const { manager } = useTeamSession();
+  const [signedIn, setSignedIn] = useState(false);
+  useEffect(() => { void supabase.auth.getSession().then(({ data }) => setSignedIn(Boolean(data.session))); const { data } = supabase.auth.onAuthStateChange((_e, s) => setSignedIn(Boolean(s))); return () => data.subscription.unsubscribe(); }, []);
   const [email, setEmail] = useState('');
   const [code, setCode] = useState('');
   const [sent, setSent] = useState(false);
@@ -27,19 +29,20 @@ export function ManagerAccess() {
       } else {
         const { error } = await supabase.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: window.location.origin } });
         if (error) throw error;
-        setSent(true); setMessage('E-mail enviado. Abra o link ou informe o código recebido.');
+        setSent(true); setMessage('Enviamos um link para o seu e-mail. Abra o link neste mesmo navegador e você voltará ao painel já com a gestão ativa.');
       }
     } catch (error) { setMessage(error instanceof Error ? error.message : 'Não foi possível acessar. Tente novamente.'); }
     finally { setBusy(false); }
   }
   if (manager) return <Button variant="outline" size="sm" onClick={() => void supabase.auth.signOut()}><ShieldCheck className="size-4" />Sair da gestão</Button>;
+  if (signedIn) return <div className="flex items-center gap-2"><span role="status" className="text-xs text-muted-foreground">Este e-mail não tem acesso de gestão.</span><Button variant="outline" size="sm" onClick={() => void supabase.auth.signOut()}>Sair</Button></div>;
   return <Dialog open={open} onOpenChange={setOpen}>
     <DialogTrigger asChild><Button variant="outline" size="sm"><ShieldCheck className="size-4" />Gestão</Button></DialogTrigger>
     <DialogContent className="max-w-sm">
       <DialogHeader><DialogTitle>Acesso da gestão</DialogTitle></DialogHeader>
       <form onSubmit={submit} className="space-y-4">
         <div className="space-y-2"><Label htmlFor="manager-email">E-mail</Label><Input id="manager-email" type="email" autoComplete="email" required value={email} disabled={sent} onChange={(e) => setEmail(e.target.value)} /></div>
-        {sent && <div className="space-y-2"><Label htmlFor="manager-code">Código recebido</Label><Input id="manager-code" inputMode="numeric" autoComplete="one-time-code" required value={code} onChange={(e) => setCode(e.target.value)} /></div>}
+        {sent && <div className="space-y-2"><Label htmlFor="manager-code">Código (só se o e-mail trouxer um código)</Label><Input id="manager-code" inputMode="numeric" autoComplete="one-time-code" required value={code} onChange={(e) => setCode(e.target.value)} /></div>}
         {message && <p role="status" className="text-sm text-muted-foreground">{message}</p>}
         <Button className="w-full" disabled={busy}>{busy ? 'Aguarde…' : sent ? 'Confirmar código' : 'Enviar acesso por e-mail'}</Button>
         {sent && <Button type="button" variant="ghost" className="w-full" onClick={() => { setSent(false); setMessage(null); }}>Usar outro e-mail</Button>}
