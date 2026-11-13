@@ -1,0 +1,1 @@
+ALTER TYPE public.presence_status ADD VALUE IF NOT EXISTS 'vacation';

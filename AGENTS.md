@@ -14,3 +14,4 @@
 - Both lists read list_member_presence so disconnected members display Offline even when unload delivery fails; heartbeats never overwrite manual status.
 - Members can only write through capability RPCs; published clients that use direct writes require republishing after the write-protection migration.
 - Share the personal pause reminder across team views; use per-tab dismissal/sound markers and gesture-unlocked browser audio to avoid repeating a chime during navigation.
+- Preserve vacation status through connection expiry, close and reconnect in presence RPCs; a long-term absence must not become Offline or Online automatically.

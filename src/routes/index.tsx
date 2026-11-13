@@ -21,15 +21,16 @@ const STATUS: Record<Status, { label: string; dot: string; badge: string }> = {
   away: { label: "Ausente", dot: "bg-status-away", badge: "bg-status-away/20 text-foreground border-status-away/50" },
   meeting: { label: "Em Reunião", dot: "bg-status-meeting", badge: "bg-status-meeting/15 text-foreground border-status-meeting/40" },
   lunch: { label: "Em Almoço", dot: "bg-status-lunch", badge: "bg-status-lunch/15 text-foreground border-status-lunch/40" },
+  vacation: { label: "Férias", dot: "bg-status-vacation", badge: "bg-status-vacation/15 text-foreground border-status-vacation/40" },
   offline: { label: "Off-line", dot: "bg-status-offline", badge: "bg-status-offline/15 text-muted-foreground border-status-offline/40" },
 };
-const ORDER: Status[] = ["online", "meeting", "away", "lunch", "offline"];
+const ORDER: Status[] = ["online", "meeting", "away", "lunch", "vacation", "offline"];
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
       { title: "Stoneverso — Status da equipe em tempo real" },
-      { name: "description", content: "Veja quem da equipe está on-line, em reunião, ausente, em almoço ou off-line, atualizado em tempo real." },
+      { name: "description", content: "Veja quem da equipe está on-line, em reunião, ausente, em almoço, de férias ou off-line, atualizado em tempo real." },
       { property: "og:title", content: "Stoneverso — Status da equipe em tempo real" },
       { property: "og:description", content: "Disponibilidade da equipe atualizada ao vivo." },
       { property: "og:type", content: "website" },
@@ -174,7 +175,7 @@ function Dashboard({ userId, onLeave }: { userId: string | null; onLeave: () => 
           <p className="text-sm text-muted-foreground">
             Olá, <span className="font-medium text-foreground">{me?.display_name ?? "…"}</span>. Seu status:
           </p>
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-5">
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
             {ORDER.map((s) => {
               const active = me?.status === s;
               return (

@@ -239,7 +239,13 @@ export type Database = {
       }
     }
     Enums: {
-      presence_status: "online" | "offline" | "away" | "lunch" | "meeting"
+      presence_status:
+        | "online"
+        | "offline"
+        | "away"
+        | "lunch"
+        | "meeting"
+        | "vacation"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -367,7 +373,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      presence_status: ["online", "offline", "away", "lunch", "meeting"],
+      presence_status: [
+        "online",
+        "offline",
+        "away",
+        "lunch",
+        "meeting",
+        "vacation",
+      ],
     },
   },
 } as const

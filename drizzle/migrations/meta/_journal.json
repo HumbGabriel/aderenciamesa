@@ -64,6 +64,20 @@
       "when": 1794484052559,
       "tag": "0008_fix_note_hash",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794592296681,
+      "tag": "0009_add_vacation_status",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794592383969,
+      "tag": "0010_preserve_vacation_presence",
+      "breakpoints": true
     }
   ]
 }

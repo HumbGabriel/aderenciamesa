@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { Constants } from '@/integrations/supabase/types';
 import { hasLiveConnection, LEASE_MS, needsPauseReminder } from '@/lib/presence-rules';
 
 describe('Automatic Offline', () => {
@@ -15,12 +16,15 @@ describe('Automatic Offline', () => {
   });
 });
 describe('Pause reminder', () => {
+  it('supports vacation as a saved team status', () => {
+    expect(Constants.public.Enums.presence_status).toContain('vacation');
+  });
   it('starts after exactly 15 minutes continuously away', () => {
     expect(needsPauseReminder('away', 1000, 1000 + 899_999)).toBe(false);
     expect(needsPauseReminder('away', 1000, 1000 + 900_000)).toBe(true);
   });
   it('does not alert for online, lunch, meeting or offline', () => {
-    for (const status of ['online', 'lunch', 'meeting', 'offline']) {
+    for (const status of ['online', 'lunch', 'meeting', 'vacation', 'offline']) {
       expect(needsPauseReminder(status, 1000, 1000 + 900_000)).toBe(false);
     }
   });
