@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hasLiveConnection, LEASE_MS } from '@/lib/presence-rules';
+import { hasLiveConnection, LEASE_MS, needsPauseReminder } from '@/lib/presence-rules';
 
 describe('Automatic Offline', () => {
   it('is offline when the last site tab closes', () => {
@@ -12,6 +12,20 @@ describe('Automatic Offline', () => {
     expect(LEASE_MS).toBe(180000);
     expect(hasLiveConnection([{ lastSeen: 1000, closed: false }], 180999)).toBe(true);
     expect(hasLiveConnection([{ lastSeen: 1000, closed: false }], 181000)).toBe(false);
+  });
+});
+describe('Pause reminder', () => {
+  it('starts after exactly 15 minutes continuously away', () => {
+    expect(needsPauseReminder('away', 1000, 1000 + 899_999)).toBe(false);
+    expect(needsPauseReminder('away', 1000, 1000 + 900_000)).toBe(true);
+  });
+  it('does not alert for online, lunch, meeting or offline', () => {
+    for (const status of ['online', 'lunch', 'meeting', 'offline']) {
+      expect(needsPauseReminder(status, 1000, 1000 + 900_000)).toBe(false);
+    }
+  });
+  it('restarts the timer for a new pause', () => {
+    expect(needsPauseReminder('away', 900_000, 900_001)).toBe(false);
   });
 });
 import { onlineHours as _oh } from '@/lib/presence-rules';

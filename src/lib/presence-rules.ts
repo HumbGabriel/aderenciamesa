@@ -6,6 +6,11 @@ export function hasLiveConnection(connections: { lastSeen: number; closed: boole
   return connections.some((connection) => !connection.closed && connection.lastSeen > now - LEASE_MS);
 }
 export const BREAK_ALERT_MS = 3_600_000;
+export const PAUSE_REMINDER_MS = 15 * 60_000;
+
+export function needsPauseReminder(status: string, updatedAt: number, now: number) {
+  return status === 'away' && now - updatedAt >= PAUSE_REMINDER_MS;
+}
 
 /** Number of full hours someone has been continuously online (0 if under 1h). */
 export function onlineHours(onlineSince: number, now: number) {

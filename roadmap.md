@@ -1,4 +1,5 @@
 # Tasks
+- [x] Add and verify the personal 15-minute away reminder with a soft sound on both team views.
 - [x] Automatic offline with tab-aware connection tracking on both views.
 - [x] Protected manager access and edits for the designated email.
 - [x] Preserve existing name entry and explain activating management without leaving the team.

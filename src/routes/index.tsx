@@ -11,6 +11,7 @@ import { useTeamSession } from '@/components/team-session';
 import { ManagerAccess } from '@/components/manager-access';
 import { usePresence } from '@/hooks/use-presence';
 import { onlineHours } from '@/lib/presence-rules';
+import { PauseReminder } from '@/components/pause-reminder';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type Status = Database["public"]["Enums"]["presence_status"];
@@ -159,6 +160,7 @@ function Dashboard({ userId, onLeave }: { userId: string | null; onLeave: () => 
         </header>
 
         {(error || loadError || connectionError) && <p role="alert" className="mt-4 text-sm text-destructive">{error || loadError || connectionError}</p>}
+        <PauseReminder people={people} now={now} />
         {userId && showBreak && me && <div role="alert" className="mt-6 rounded-2xl border border-status-away/50 bg-status-away/15 p-4">
           <p className="font-medium text-foreground">Você está on-line há {hours} h seguida{hours > 1 ? 's' : ''}. Que tal uma pausa?</p>
           <p className="mt-1 text-sm text-foreground/80">Levante para se alongar, ande um pouco, beba uma água e vá ao banheiro.</p>

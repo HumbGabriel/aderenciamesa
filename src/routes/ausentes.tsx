@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { usePresence } from '@/hooks/use-presence';
+import { PauseReminder } from '@/components/pause-reminder';
 
 export const Route = createFileRoute("/ausentes")({
   head: () => ({
@@ -40,6 +41,7 @@ function Ausentes() {
           <Link to="/" className="text-sm font-medium text-primary hover:underline">Painel completo</Link>
         </header>
         {error && <p role="alert" className="mt-4 text-sm text-destructive">{error}</p>}
+        <PauseReminder people={people} now={now} />
         <ul className="mt-8 divide-y overflow-hidden rounded-2xl border bg-card">
           {away.map((p) => (
             <li key={p.id} className="flex items-center gap-3 px-4 py-3.5">
