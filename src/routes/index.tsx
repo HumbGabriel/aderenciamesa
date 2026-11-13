@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { useTeamSession } from '@/components/team-session';
 import { ManagerAccess } from '@/components/manager-access';
 import { usePresence } from '@/hooks/use-presence';
+import { onlineHours } from '@/lib/presence-rules';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type Status = Database["public"]["Enums"]["presence_status"];
@@ -103,6 +104,11 @@ function Dashboard({ userId, onLeave }: { userId: string | null; onLeave: () => 
   const [busy, setBusy] = useState(false);
 
   const me = people.find((p) => p.id === userId);
+  const [dismissed, setDismissed] = useState<{ since: string; hours: number } | null>(null);
+  const hours = me?.status === 'online' ? onlineHours(new Date(me.status_updated_at).getTime(), now) : 0;
+  const dismissedHours = dismissed && me && dismissed.since === me.status_updated_at ? dismissed.hours : 0;
+  const showBreak = hours >= 1 && hours > dismissedHours;
+  const awayCount = people.filter((p) => p.status === 'away').length;
   const sorted = [...people].sort(
     (a, b) => ORDER.indexOf(a.status) - ORDER.indexOf(b.status) || a.display_name.localeCompare(b.display_name),
   );
@@ -153,6 +159,15 @@ function Dashboard({ userId, onLeave }: { userId: string | null; onLeave: () => 
         </header>
 
         {(error || loadError || connectionError) && <p role="alert" className="mt-4 text-sm text-destructive">{error || loadError || connectionError}</p>}
+        {userId && showBreak && me && <div role="alert" className="mt-6 rounded-2xl border border-status-away/50 bg-status-away/15 p-4">
+          <p className="font-medium text-foreground">Você está on-line há {hours} h seguida{hours > 1 ? 's' : ''}. Que tal uma pausa?</p>
+          <p className="mt-1 text-sm text-foreground/80">Levante para se alongar, ande um pouco, beba uma água e vá ao banheiro.</p>
+          <p className="mt-1 text-sm text-foreground/80">Antes, confira os ausentes: <strong>{awayCount} {awayCount === 1 ? 'pessoa pausada' : 'pessoas pausadas'}</strong> agora.</p>
+          <div className="mt-3 flex gap-2">
+            <Button size="sm" variant="outline" asChild><Link to="/ausentes">Ver ausentes</Link></Button>
+            <Button size="sm" variant="ghost" onClick={() => setDismissed({ since: me.status_updated_at, hours })}>Agora não</Button>
+          </div>
+        </div>}
         {userId && <section className="mt-8 rounded-2xl border bg-card p-5 shadow-sm">
           <p className="text-sm text-muted-foreground">
             Olá, <span className="font-medium text-foreground">{me?.display_name ?? "…"}</span>. Seu status:

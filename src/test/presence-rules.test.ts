@@ -14,3 +14,10 @@ describe('Automatic Offline', () => {
     expect(hasLiveConnection([{ lastSeen: 1000, closed: false }], 181000)).toBe(false);
   });
 });
+import { onlineHours as _oh } from '@/lib/presence-rules';
+import { test as _t, expect as _e } from 'vitest';
+_t('break alert fires after each full hour online', () => {
+  _e(_oh(0, 59 * 60_000)).toBe(0);
+  _e(_oh(0, 60 * 60_000)).toBe(1);
+  _e(_oh(0, 125 * 60_000)).toBe(2);
+});
