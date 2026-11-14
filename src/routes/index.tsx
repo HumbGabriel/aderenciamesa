@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, type FormEvent } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2, Radio, Coffee, ShieldCheck } from "lucide-react";
+import { motion, AnimatePresence, MotionConfig, useReducedMotion, animate } from "framer-motion";
 import { supabase } from "@/integrations/supabase/client";
 import type { Database } from "@/integrations/supabase/types";
 import { Button } from "@/components/ui/button";
@@ -39,6 +40,36 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
+function CountUp({ value, className }: { value: number; className?: string }) {
+  const reduce = useReducedMotion();
+  const [shown, setShown] = useState(value);
+  const [from, setFrom] = useState(value);
+  useEffect(() => {
+    if (reduce) { setShown(value); setFrom(value); return; }
+    const c = animate(from, value, { duration: 0.6, ease: "easeOut", onUpdate: (v) => setShown(Math.round(v)) });
+    setFrom(value);
+    return () => c.stop();
+  }, [value, reduce]); // eslint-disable-line react-hooks/exhaustive-deps
+  return <span className={className}>{shown}</span>;
+}
+
+function StatusDot({ status, className = "" }: { status: Status; className?: string }) {
+  const reduce = useReducedMotion();
+  return (
+    <span className={`relative inline-flex ${className}`}>
+      {status === "online" && !reduce && (
+        <motion.span className={`absolute inset-0 rounded-full ${STATUS.online.dot}`}
+          animate={{ scale: [1, 2.4], opacity: [0.6, 0] }}
+          transition={{ duration: 1.8, repeat: Infinity, ease: "easeOut" }} />
+      )}
+      <span className={`relative h-full w-full rounded-full ${STATUS[status].dot}`} />
+    </span>
+  );
+}
+
+const stagger = { hidden: {}, show: { transition: { staggerChildren: 0.04 } } };
+const rise = { hidden: { opacity: 0, y: 12 }, show: { opacity: 1, y: 0 } };
+
 function timeAgo(iso: string, now: number) {
   const s = Math.max(0, Math.floor((now - new Date(iso).getTime()) / 1000));
   if (s < 60) return "agora mesmo";
@@ -52,7 +83,7 @@ function timeAgo(iso: string, now: number) {
 function Index() {
   const { memberId, ready, leave, manager } = useTeamSession();
   if (!ready) return <div className="min-h-screen bg-background" />;
-  return memberId || manager ? <Dashboard userId={memberId} onLeave={leave} /> : <NameForm />;
+  return <MotionConfig reducedMotion="user">{memberId || manager ? <Dashboard userId={memberId} onLeave={leave} /> : <NameForm />}</MotionConfig>;
 }
 
 function NameForm() {
@@ -72,23 +103,48 @@ function NameForm() {
     finally { setBusy(false); }
   }
 
+  const features = [
+    { icon: Radio, title: "Tempo real", text: "Status da mesa atualizado ao vivo para todo mundo." },
+    { icon: Coffee, title: "Pausa inteligente", text: "Lembretes para pausar e para atualizar o status." },
+    { icon: ShieldCheck, title: "Visão de gestão", text: "Ajuste de status e histórico do dia para a gestão." },
+  ];
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-5">
-      <div className="w-full max-w-sm">
-        <div className="rounded-2xl bg-card/85 p-4 backdrop-blur">
-          <h1 className="font-display text-4xl font-bold tracking-tight text-primary">Stoneverso</h1>
-          <p className="mt-2 text-muted-foreground">Quem está disponível agora, em tempo real.</p>
-        </div>
-        <form onSubmit={submit} className="mt-8 space-y-4 rounded-2xl border bg-card p-6 shadow-sm">
-          <div className="space-y-1.5">
-            <Label htmlFor="name">Seu nome</Label>
-            <Input id="name" required maxLength={60} value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Ana Souza" />
+    <main className="relative min-h-screen overflow-hidden bg-background">
+      <div aria-hidden className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,var(--border)_1px,transparent_1px),linear-gradient(to_bottom,var(--border)_1px,transparent_1px)] bg-[size:40px_40px] [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_80%)]" />
+      <motion.div variants={stagger} initial="hidden" animate="show"
+        className="relative mx-auto grid min-h-screen max-w-6xl items-center gap-10 px-5 py-12 lg:grid-cols-[1.3fr_1fr]">
+        <div>
+          <motion.p variants={rise} className="font-display text-sm font-bold uppercase tracking-widest text-primary">Stoneverso</motion.p>
+          <motion.h1 variants={rise} className="mt-3 font-display text-5xl font-bold leading-[1.05] tracking-tight text-foreground sm:text-6xl">
+            Quem está disponível.<br /><span className="text-primary">Agora.</span>
+          </motion.h1>
+          <div className="mt-10 grid gap-3 sm:grid-cols-3">
+            {features.map(({ icon: Icon, title, text }) => (
+              <motion.div key={title} variants={rise} className="rounded-2xl border bg-card/80 p-4 backdrop-blur">
+                <Icon className="size-5 text-primary" />
+                <p className="mt-3 font-display font-bold text-foreground">{title}</p>
+                <p className="mt-1 text-sm text-muted-foreground">{text}</p>
+              </motion.div>
+            ))}
           </div>
-          {(msg || connectionError) && <p className="text-sm text-destructive">{msg || connectionError}</p>}
-          <Button type="submit" className="w-full" disabled={busy}>Entrar</Button>
-        </form>
-        <div className="mt-4 flex justify-center"><ManagerAccess /></div>
-      </div>
+        </div>
+        <motion.div variants={rise} className="w-full rounded-2xl border bg-card p-6 shadow-sm">
+          <h2 className="font-display text-xl font-bold text-foreground">Entrar na mesa</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Digite seu nome para aparecer na lista.</p>
+          <form onSubmit={submit} className="mt-5 space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="name">Seu nome</Label>
+              <Input id="name" required maxLength={60} value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex.: Ana Souza" />
+            </div>
+            {(msg || connectionError) && <p className="text-sm text-destructive">{msg || connectionError}</p>}
+            <Button type="submit" className="w-full" disabled={busy}>Entrar</Button>
+          </form>
+          <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
+            <span className="h-px flex-1 bg-border" />ou<span className="h-px flex-1 bg-border" />
+          </div>
+          <div className="flex justify-center"><ManagerAccess /></div>
+        </motion.div>
+      </motion.div>
     </main>
   );
 }
@@ -173,14 +229,14 @@ function Dashboard({ userId, onLeave }: { userId: string | null; onLeave: () => 
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <span className="inline-flex items-center gap-2 rounded-full bg-primary-foreground/10 px-3 py-1 text-xs font-medium">
-                <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-hero-accent opacity-75" /><span className="relative inline-flex h-2 w-2 rounded-full bg-hero-accent" /></span>
+                <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full rounded-full bg-hero-accent opacity-75 motion-safe:animate-ping" /><span className="relative inline-flex h-2 w-2 rounded-full bg-hero-accent" /></span>
                 Ao vivo
               </span>
               <h1 className="mt-3 font-display text-2xl font-bold sm:text-3xl">{greeting}, {me?.display_name ?? (manager ? 'gestão' : '…')}</h1>
               <p className="mt-1 text-sm text-primary-foreground/70">Disponibilidade da equipe em tempo real.</p>
             </div>
             <div className="text-right">
-              <p className="font-display text-[56px] font-bold leading-none text-hero-accent">{onlineCount}</p>
+              <CountUp value={onlineCount} className="block font-display text-[56px] font-bold leading-none text-hero-accent" />
               <p className="mt-1 text-sm text-primary-foreground/70">de <span className="font-mono">{people.length}</span> on-line agora</p>
             </div>
           </div>
@@ -197,20 +253,20 @@ function Dashboard({ userId, onLeave }: { userId: string | null; onLeave: () => 
           </div>
         </div>}
 
-        <section className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <motion.section variants={stagger} initial="hidden" animate="show" className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           {counts.map(({ s, n }) => {
             const active = filter === s;
             return (
-              <button key={s} type="button" aria-pressed={active} onClick={() => setFilter(active ? null : s)}
+              <motion.button variants={rise} key={s} type="button" aria-pressed={active} onClick={() => setFilter(active ? null : s)}
                 className={`rounded-2xl border bg-card p-4 text-left transition-all hover:shadow-sm ${active ? 'border-primary ring-2 ring-primary/30' : ''}`}>
                 <span className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                  <span className={`h-2.5 w-2.5 rounded-full ${STATUS[s].dot}`} />{STATUS[s].label}
+                  <StatusDot status={s} className="h-2.5 w-2.5" />{STATUS[s].label}
                 </span>
-                <span className="mt-2 block font-mono text-3xl font-semibold text-foreground">{n}</span>
-              </button>
+                <CountUp value={n} className="mt-2 block font-mono text-3xl font-semibold text-foreground" />
+              </motion.button>
             );
           })}
-        </section>
+        </motion.section>
 
         <div className={`mt-6 grid gap-6 ${userId ? 'lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]' : ''}`}>
           {userId && <section className="h-fit rounded-2xl border bg-card p-5">
@@ -219,13 +275,14 @@ function Dashboard({ userId, onLeave }: { userId: string | null; onLeave: () => 
               {ORDER.map((s) => {
                 const active = me?.status === s;
                 return (
-                  <Button key={s} disabled={busy} aria-pressed={active} onClick={() => setStatus(s)}
-                    className={`flex h-auto items-center justify-start gap-2 rounded-xl border px-3 py-3 text-sm font-medium transition-all ${
-                      active ? "border-primary bg-primary text-primary-foreground" : "bg-background text-foreground hover:bg-accent"
+                  <button key={s} type="button" disabled={busy} aria-pressed={active} onClick={() => setStatus(s)}
+                    className={`relative flex items-center justify-start gap-2 rounded-xl border px-3 py-3 text-sm font-medium transition-colors disabled:opacity-60 ${
+                      active ? "border-primary text-primary-foreground" : "bg-background text-foreground hover:bg-accent"
                     }`}>
-                    <span className={`h-2.5 w-2.5 rounded-full ${STATUS[s].dot}`} />
-                    {STATUS[s].label}
-                  </Button>
+                    {active && <motion.span layoutId="status-highlight" className="absolute inset-0 rounded-xl bg-primary" transition={{ type: "spring", stiffness: 500, damping: 38 }} />}
+                    <StatusDot status={s} className="relative h-2.5 w-2.5" />
+                    <span className="relative">{STATUS[s].label}</span>
+                  </button>
                 );
               })}
             </div>
@@ -244,13 +301,15 @@ function Dashboard({ userId, onLeave }: { userId: string | null; onLeave: () => 
               {filter && <Button variant="ghost" size="sm" onClick={() => setFilter(null)}>Limpar filtro</Button>}
             </div>
             <ul className="divide-y overflow-hidden rounded-2xl border bg-card">
+              <AnimatePresence initial={false}>
               {visible.map((p) => (
-                <li key={p.id} className="flex items-center gap-3 px-4 py-3.5">
+                <motion.li layout="position" key={p.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 40 }} className="flex items-center gap-3 bg-card px-4 py-3.5">
                   <div className="relative">
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent font-display font-bold text-foreground">
                       {p.display_name.slice(0, 1).toUpperCase()}
                     </div>
-                    <span className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-card ${STATUS[p.status].dot}`} />
+                    <span className="absolute -bottom-0.5 -right-0.5 flex h-3.5 w-3.5 rounded-full border-2 border-card bg-card"><StatusDot status={p.status} className="h-full w-full" /></span>
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="truncate font-medium text-foreground">
@@ -266,8 +325,9 @@ function Dashboard({ userId, onLeave }: { userId: string | null; onLeave: () => 
                     {STATUS[p.status].label}
                   </span>}
                   {manager && <Button variant="ghost" size="icon" disabled={busy} aria-label={`Remover ${p.display_name}`} onClick={() => void removeMember(p.id, p.display_name)}><Trash2 className="size-4" /></Button>}
-                </li>
+                </motion.li>
               ))}
+              </AnimatePresence>
               {people.length === 0 && <li className="px-4 py-8 text-center text-sm text-muted-foreground">Carregando equipe…</li>}
               {people.length > 0 && visible.length === 0 && <li className="px-4 py-8 text-center text-sm text-muted-foreground">Ninguém com esse status agora.</li>}
             </ul>
