@@ -1,5 +1,4 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import mysticBg from "@/assets/mystic-bg.jpg";
 import { useEffect, useState, type FormEvent } from "react";
 import { Trash2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -74,10 +73,7 @@ function NameForm() {
   }
 
   return (
-    <main
-      className="flex min-h-screen items-center justify-center bg-background bg-cover bg-center px-5"
-      style={{ backgroundImage: `url(${mysticBg})` }}
-    >
+    <main className="flex min-h-screen items-center justify-center bg-background px-5">
       <div className="w-full max-w-sm">
         <div className="rounded-2xl bg-card/85 p-4 backdrop-blur">
           <h1 className="font-display text-4xl font-bold tracking-tight text-primary">Stoneverso</h1>
