@@ -139,24 +139,53 @@ function Dashboard({ userId, onLeave }: { userId: string | null; onLeave: () => 
     setBusy(false);
   }
 
+  const [filter, setFilter] = useState<Status | null>(null);
+  const visible = filter ? sorted.filter((p) => p.status === filter) : sorted;
+  const hour = new Date(now).getHours();
+  const greeting = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
+  const onlineCount = counts[0]?.n ?? 0;
+
   return (
-    <main className="min-h-screen bg-background px-5 py-8">
-      <div className="mx-auto max-w-3xl">
-        <header className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="font-display text-3xl font-bold tracking-tight text-primary">Stoneverso</h1>
-            <p className="text-sm text-muted-foreground">
-              {counts[0]?.n ?? 0} de {people.length} on-line agora
-            </p>
+    <div className="min-h-screen bg-background">
+      <header className="border-b bg-card">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-3">
+          <div className="flex items-center gap-6">
+            <Link to="/" className="flex items-center gap-2">
+              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary font-display text-sm font-bold text-primary-foreground">S</span>
+              <span className="font-display text-lg font-bold tracking-tight text-foreground">Stoneverso</span>
+            </Link>
+            <nav className="flex items-center gap-1 text-sm">
+              <Link to="/" className="rounded-lg px-3 py-1.5 font-medium text-foreground bg-accent">Equipe</Link>
+              <Link to="/ausentes" className="rounded-lg px-3 py-1.5 text-muted-foreground hover:bg-accent hover:text-foreground">Ausentes</Link>
+            </nav>
           </div>
           <div className="flex flex-wrap items-center gap-1">
             <ManagerAccess />
-            <Button variant="outline" size="sm" asChild><Link to="/ausentes">Ver ausentes</Link></Button>
             {userId && <Button variant="ghost" size="sm" onClick={onLeave}>Trocar nome</Button>}
           </div>
-        </header>
+        </div>
+      </header>
 
-        {(error || loadError || connectionError) && <p role="alert" className="mt-4 text-sm text-destructive">{error || loadError || connectionError}</p>}
+      <main className="mx-auto max-w-6xl px-5 py-6">
+        {(error || loadError || connectionError) && <p role="alert" className="mb-4 text-sm text-destructive">{error || loadError || connectionError}</p>}
+
+        <section className="rounded-2xl bg-hero p-6 text-primary-foreground sm:p-8">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <span className="inline-flex items-center gap-2 rounded-full bg-primary-foreground/10 px-3 py-1 text-xs font-medium">
+                <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-hero-accent opacity-75" /><span className="relative inline-flex h-2 w-2 rounded-full bg-hero-accent" /></span>
+                Ao vivo
+              </span>
+              <h1 className="mt-3 font-display text-2xl font-bold sm:text-3xl">{greeting}, {me?.display_name ?? (manager ? 'gestão' : '…')}</h1>
+              <p className="mt-1 text-sm text-primary-foreground/70">Disponibilidade da equipe em tempo real.</p>
+            </div>
+            <div className="text-right">
+              <p className="font-display text-[56px] font-bold leading-none text-hero-accent">{onlineCount}</p>
+              <p className="mt-1 text-sm text-primary-foreground/70">de <span className="font-mono">{people.length}</span> on-line agora</p>
+            </div>
+          </div>
+        </section>
+
         <PauseReminder people={people} now={now} />
         {userId && showBreak && me && <div role="alert" className="mt-6 rounded-2xl border border-status-away/50 bg-status-away/15 p-4">
           <p className="font-medium text-foreground">Você está on-line há {hours} h seguida{hours > 1 ? 's' : ''}. Que tal uma pausa?</p>
@@ -167,76 +196,86 @@ function Dashboard({ userId, onLeave }: { userId: string | null; onLeave: () => 
             <Button size="sm" variant="ghost" onClick={() => setDismissed({ since: me.status_updated_at, hours })}>Agora não</Button>
           </div>
         </div>}
-        {userId && <section className="mt-8 rounded-2xl border bg-card p-5 shadow-sm">
-          <p className="text-sm text-muted-foreground">
-            Olá, <span className="font-medium text-foreground">{me?.display_name ?? "…"}</span>. Seu status:
-          </p>
-          <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {ORDER.map((s) => {
-              const active = me?.status === s;
-              return (
-                <Button
-                  key={s}
-                   disabled={busy}
-                   aria-pressed={active}
-                  onClick={() => setStatus(s)}
-                  className={`flex items-center gap-2 rounded-xl border px-3 py-3 text-sm font-medium transition-all ${
-                    active ? "border-primary bg-primary text-primary-foreground" : "bg-background text-foreground hover:bg-accent"
-                  }`}
-                >
-                  <span className={`h-2.5 w-2.5 rounded-full ${STATUS[s].dot}`} />
-                  {STATUS[s].label}
-                 </Button>
-              );
-            })}
-          </div>
-          <form onSubmit={saveNote} className="mt-4 flex gap-2">
-            <Label htmlFor="status-note" className="sr-only">Recado</Label>
-            <Input id="status-note" maxLength={80} placeholder='Recado (ex.: "volto 14h")' value={note} onChange={(e) => setNote(e.target.value)} />
-            <Button type="submit" variant="outline" disabled={busy}>{noteSaved ? 'Salvo' : 'Salvar'}</Button>
-          </form>
-        </section>}
 
-        <section className="mt-8">
-          <div className="mb-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
-            {counts.map(({ s, n }) => (
-              <span key={s} className="flex items-center gap-1.5">
-                <span className={`h-2 w-2 rounded-full ${STATUS[s].dot}`} />
-                {STATUS[s].label} · {n}
-              </span>
-            ))}
-          </div>
-          <ul className="divide-y overflow-hidden rounded-2xl border bg-card">
-            {sorted.map((p) => (
-              <li key={p.id} className="flex items-center gap-3 px-4 py-3.5">
-                <div className="relative">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary font-display font-bold text-secondary-foreground">
-                    {p.display_name.slice(0, 1).toUpperCase()}
-                  </div>
-                  <span className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-card ${STATUS[p.status].dot}`} />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium text-foreground">
-                    {p.display_name} {p.id === userId && <span className="text-muted-foreground">(você)</span>}
-                  </p>
-                  {p.note && <p className="truncate text-sm text-foreground/80">“{p.note}”</p>}
-                  <p className="text-xs text-muted-foreground">{timeAgo(p.status_updated_at, now)}</p>
-                </div>
-                {manager ? <Select value={p.status} disabled={busy} onValueChange={(status) => void manageStatus(p.id, status as Status)}>
-                  <SelectTrigger aria-label={`Status de ${p.display_name}`} className="w-32 shrink-0"><SelectValue /></SelectTrigger>
-                  <SelectContent>{ORDER.map((status) => <SelectItem key={status} value={status}>{STATUS[status].label}</SelectItem>)}</SelectContent>
-                </Select> : <span className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium ${STATUS[p.status].badge}`}>
-                  {STATUS[p.status].label}
-                </span>}
-                {manager && <Button variant="ghost" size="icon" disabled={busy} aria-label={`Remover ${p.display_name}`} onClick={() => void removeMember(p.id, p.display_name)}><Trash2 className="size-4" /></Button>}
-              </li>
-            ))}
-            {people.length === 0 && <li className="px-4 py-8 text-center text-sm text-muted-foreground">Carregando equipe…</li>}
-          </ul>
+        <section className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          {counts.map(({ s, n }) => {
+            const active = filter === s;
+            return (
+              <button key={s} type="button" aria-pressed={active} onClick={() => setFilter(active ? null : s)}
+                className={`rounded-2xl border bg-card p-4 text-left transition-all hover:shadow-sm ${active ? 'border-primary ring-2 ring-primary/30' : ''}`}>
+                <span className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                  <span className={`h-2.5 w-2.5 rounded-full ${STATUS[s].dot}`} />{STATUS[s].label}
+                </span>
+                <span className="mt-2 block font-mono text-3xl font-semibold text-foreground">{n}</span>
+              </button>
+            );
+          })}
         </section>
+
+        <div className={`mt-6 grid gap-6 ${userId ? 'lg:grid-cols-[minmax(0,1fr)_minmax(0,1.6fr)]' : ''}`}>
+          {userId && <section className="h-fit rounded-2xl border bg-card p-5">
+            <h2 className="font-display text-lg font-bold text-foreground">Seu status</h2>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {ORDER.map((s) => {
+                const active = me?.status === s;
+                return (
+                  <Button key={s} disabled={busy} aria-pressed={active} onClick={() => setStatus(s)}
+                    className={`flex h-auto items-center justify-start gap-2 rounded-xl border px-3 py-3 text-sm font-medium transition-all ${
+                      active ? "border-primary bg-primary text-primary-foreground" : "bg-background text-foreground hover:bg-accent"
+                    }`}>
+                    <span className={`h-2.5 w-2.5 rounded-full ${STATUS[s].dot}`} />
+                    {STATUS[s].label}
+                  </Button>
+                );
+              })}
+            </div>
+            <form onSubmit={saveNote} className="mt-4 space-y-2">
+              <Label htmlFor="status-note" className="text-sm text-muted-foreground">Recado</Label>
+              <div className="flex gap-2">
+                <Input id="status-note" maxLength={80} placeholder='Ex.: "volto 14h"' value={note} onChange={(e) => setNote(e.target.value)} />
+                <Button type="submit" variant="outline" disabled={busy}>{noteSaved ? 'Salvo' : 'Salvar'}</Button>
+              </div>
+            </form>
+          </section>}
+
+          <section>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="font-display text-lg font-bold text-foreground">Equipe {filter && <span className="text-sm font-normal text-muted-foreground">· {STATUS[filter].label}</span>}</h2>
+              {filter && <Button variant="ghost" size="sm" onClick={() => setFilter(null)}>Limpar filtro</Button>}
+            </div>
+            <ul className="divide-y overflow-hidden rounded-2xl border bg-card">
+              {visible.map((p) => (
+                <li key={p.id} className="flex items-center gap-3 px-4 py-3.5">
+                  <div className="relative">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-accent font-display font-bold text-foreground">
+                      {p.display_name.slice(0, 1).toUpperCase()}
+                    </div>
+                    <span className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-card ${STATUS[p.status].dot}`} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate font-medium text-foreground">
+                      {p.display_name} {p.id === userId && <span className="text-muted-foreground">(você)</span>}
+                    </p>
+                    {p.note && <p className="truncate text-sm text-foreground/80">“{p.note}”</p>}
+                    <p className="font-mono text-xs text-muted-foreground">{timeAgo(p.status_updated_at, now)}</p>
+                  </div>
+                  {manager ? <Select value={p.status} disabled={busy} onValueChange={(status) => void manageStatus(p.id, status as Status)}>
+                    <SelectTrigger aria-label={`Status de ${p.display_name}`} className="w-32 shrink-0"><SelectValue /></SelectTrigger>
+                    <SelectContent>{ORDER.map((status) => <SelectItem key={status} value={status}>{STATUS[status].label}</SelectItem>)}</SelectContent>
+                  </Select> : <span className={`shrink-0 rounded-full border px-2.5 py-1 text-xs font-medium ${STATUS[p.status].badge}`}>
+                    {STATUS[p.status].label}
+                  </span>}
+                  {manager && <Button variant="ghost" size="icon" disabled={busy} aria-label={`Remover ${p.display_name}`} onClick={() => void removeMember(p.id, p.display_name)}><Trash2 className="size-4" /></Button>}
+                </li>
+              ))}
+              {people.length === 0 && <li className="px-4 py-8 text-center text-sm text-muted-foreground">Carregando equipe…</li>}
+              {people.length > 0 && visible.length === 0 && <li className="px-4 py-8 text-center text-sm text-muted-foreground">Ninguém com esse status agora.</li>}
+            </ul>
+          </section>
+        </div>
         {manager && <DayHistory people={people} />}
-      </div>
-    </main>
+      </main>
+    </div>
   );
 }
 
@@ -271,15 +310,17 @@ function DayHistory({ people }: { people: { id: string; display_name: string }[]
         <table className="w-full text-sm">
           <thead><tr className="border-b text-left text-xs text-muted-foreground">
             <th className="px-4 py-2 font-medium">Pessoa</th>
+            <th className="min-w-40 px-3 py-2 font-medium">Proporção</th>
             {ORDER.map((s) => <th key={s} className="px-3 py-2 font-medium">{STATUS[s].label}</th>)}
           </tr></thead>
           <tbody>
             {named.map((p) => (
               <tr key={p.id} className="border-b last:border-0">
                 <td className="px-4 py-2 font-medium text-foreground">{p.display_name}</td>
+                <td className="px-3 py-2"><StatusBar rows={rows.filter((x) => x.member_id === p.id)} /></td>
                 {ORDER.map((s) => {
                   const r = rows.find((x) => x.member_id === p.id && x.status === s);
-                  return <td key={s} className="px-3 py-2 text-muted-foreground">{r && r.seconds >= 60 ? formatDuration(r.seconds) : '—'}</td>;
+                  return <td key={s} className="px-3 py-2 font-mono text-xs text-muted-foreground">{r && r.seconds >= 60 ? formatDuration(r.seconds) : '—'}</td>;
                 })}
               </tr>
             ))}
@@ -287,5 +328,19 @@ function DayHistory({ people }: { people: { id: string; display_name: string }[]
         </table>
       </div>
     </section>
+  );
+}
+
+function StatusBar({ rows }: { rows: { status: Status; seconds: number }[] }) {
+  const total = rows.reduce((sum, r) => sum + r.seconds, 0);
+  if (total < 60) return <div className="h-2.5 w-full rounded-full bg-muted" />;
+  return (
+    <div className="flex h-2.5 w-full overflow-hidden rounded-full bg-muted">
+      {ORDER.map((s) => {
+        const sec = rows.filter((r) => r.status === s).reduce((sum, r) => sum + r.seconds, 0);
+        if (!sec) return null;
+        return <div key={s} className={STATUS[s].dot} style={{ width: `${(sec / total) * 100}%` }} title={`${STATUS[s].label}: ${formatDuration(sec)}`} />;
+      })}
+    </div>
   );
 }
